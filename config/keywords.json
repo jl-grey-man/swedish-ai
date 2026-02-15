@@ -1,0 +1,105 @@
+{
+  "core_keywords": {
+    "_description": "66% of searches use these. Known pain/need terms.",
+    "pain_signals": [
+      "manuellt",
+      "tar för lång tid",
+      "tidskrävande",
+      "ineffektivt",
+      "repetitivt",
+      "flaskhals",
+      "hinner inte",
+      "överbelastade",
+      "administrativ börda",
+      "kostar för mycket tid",
+      "fel i",
+      "missar kunder",
+      "tappar kunder",
+      "svårt att hitta personal",
+      "brist på kompetens"
+    ],
+    "ai_awareness": [
+      "AI",
+      "artificiell intelligens",
+      "ChatGPT",
+      "automatisering",
+      "digitalisering",
+      "maskininlärning"
+    ],
+    "business_context": [
+      "småföretag",
+      "SMF",
+      "egenföretagare",
+      "företagare",
+      "litet företag",
+      "e-handel",
+      "konsultbolag",
+      "byrå",
+      "tillverkning"
+    ],
+    "specific_tasks": [
+      "orderhantering",
+      "fakturering",
+      "kundservice",
+      "marknadsföring",
+      "sociala medier",
+      "content",
+      "leadgenerering",
+      "CRM",
+      "bokföring",
+      "offerthantering",
+      "lagerstyrning",
+      "produktbeskrivningar",
+      "översättning"
+    ]
+  },
+  "discovery_keywords": {
+    "_description": "34% of searches use these. LLM-suggested from real signals. Starts sparse, grows over time.",
+    "from_signals": [],
+    "adjacent_terms": [
+      "drunknar i",
+      "önskar att",
+      "behöver hjälp med",
+      "frustrerad",
+      "omöjligt att hinna",
+      "pappersarbete",
+      "dubbelarbete",
+      "copy paste",
+      "excel helvete",
+      "mötesanteckningar",
+      "kundklagomål",
+      "onboarding",
+      "säljprocess"
+    ]
+  },
+  "site_targets": {
+    "linkedin": "site:linkedin.com/posts",
+    "linkedin_articles": "site:linkedin.com/pulse",
+    "foretagarna": "site:foretagarna.se",
+    "breakit": "site:breakit.se",
+    "di": "site:di.se",
+    "nyteknik": "site:nyteknik.se",
+    "flashback": "site:flashback.org",
+    "reddit_sweden": "site:reddit.com/r/sweden",
+    "reddit_foretagande": "site:reddit.com/r/foretagande",
+    "general_swedish": "site:.se"
+  },
+  "query_templates": {
+    "_description": "How keywords combine into actual Google queries",
+    "patterns": [
+      "{site_target} {pain_signal} {business_context}",
+      "{site_target} {specific_task} {pain_signal}",
+      "{site_target} {ai_awareness} {business_context} {pain_signal}",
+      "{site_target} {discovery_keyword} {business_context}",
+      "{site_target} \"{specific_task}\" \"{pain_signal}\""
+    ]
+  },
+  "rotation": {
+    "_description": "How many queries per run and how to rotate",
+    "queries_per_run": 60,
+    "core_ratio": 0.66,
+    "discovery_ratio": 0.34,
+    "max_per_site": 15,
+    "cooldown_days_before_reuse": 3
+  }
+}

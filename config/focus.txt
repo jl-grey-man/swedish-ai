@@ -1,0 +1,36 @@
+# SMB Intelligence System — Focus File
+# Edit this anytime to steer the system.
+# Changes take effect on next run.
+
+# Which sectors to prioritize
+priority_sectors:
+  - e-commerce
+  - professional services (konsultbolag, byråer, redovisning)
+  - manufacturing (tillverkning, produktion)
+  - retail (detaljhandel)
+
+# What problems to look for
+priority_problems:
+  - manual order handling / orderhantering
+  - content production (marketing, social media, web)
+  - lead generation and follow-up
+  - customer communication across languages
+  - admin tasks eating productive time
+  - messy or unstructured data
+
+# Company size sweet spot
+target_size:
+  employees: 2-50
+  revenue: any
+
+# Ignore these (waste of crawl budget)
+ignore:
+  - healthcare / vård
+  - public sector / offentlig sektor
+  - enterprise (250+ employees)
+  - AI startups (they're not the customer)
+  - pure tech companies
+
+# Go deeper on (updated as you learn)
+deep_dive:
+  - (empty — will populate as patterns emerge)
