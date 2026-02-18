@@ -96,7 +96,7 @@
   },
   "rotation": {
     "_description": "How many queries per run and how to rotate",
-    "queries_per_run": 60,
+    "queries_per_run": 20,
     "core_ratio": 0.66,
     "discovery_ratio": 0.34,
     "max_per_site": 15,

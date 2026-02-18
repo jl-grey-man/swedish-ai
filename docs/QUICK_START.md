@@ -1,188 +1,140 @@
-# Quick Start for Claude Code
+# Quick Start for Claude Code on Raspberry Pi
 
-## Current State
+## Current System State (2025-02-18)
 
 **Repository**: `/home/pi/swedish-ai` (or wherever you cloned it)  
-**Database**: `/mnt/storage/swedish-ai/smb.db` (SQLite)  
-**Config**: `/home/pi/swedish-ai/config/`  
-**Storage**: `/mnt/storage/swedish-ai/` (briefs, audits, research reports)
+**Database**: `/mnt/storage/swedish-ai/smb.db`  
+**Query Count**: 20 per run (reduced for testing)
 
-## System Architecture
+---
 
-6-phase pipeline that runs daily:
+## What's Working Now
 
-1. **CRAWL** (deterministic) - Google dorking, page fetching
-2. **EXTRACT** (LLM) - Signal extraction from raw text
-3. **VERIFY** (deterministic) - Quote matching, URL checking, company validation
-4. **ANALYZE** (LLM) - Pattern recognition, clustering
-5. **BRIEF** (LLM) - Report generation with citations
-6. **KEYWORD EVOLUTION** (LLM) - Learning new search terms
+✓ **Phase 1**: Crawl (Google dorking + page fetching)  
+✓ **Phase 2**: Extract (LLM signal extraction)  
+✓ **Phase 3**: Verify (deterministic validation)  
+✓ **Phase 4**: Analyze (LLM pattern recognition)  
+✓ **Phase 5**: Brief (LLM report generation)  
+✓ **Phase 6**: Keyword Evolution (LLM keyword learning)
 
-## What Currently Works
+---
 
-✅ All 6 phases functional  
-✅ SQLite database with proper schema  
-✅ Keyword rotation (66/34 split)  
-✅ Query cooldown (3-day reuse prevention)  
-✅ Allabolag company enrichment  
-✅ Feedback system (`python feedback.py more 42 "note"`)
+## What Needs Building
 
-## What's Being Added
+⏳ **Phase 2.5**: Credibility Check (block sales pitches)  
+⏳ **Phase 3 Enhancement**: 6-month recency filter  
+⏳ **Phase 4**: Suggested query tracking (save LLM suggestions)  
+⏳ **Phase 6**: Quality Audit (self-improvement loop)
 
-See `docs/implementation/IMPLEMENTATION_PLAN.md` for atomic steps.
+**Full plan**: See `docs/implementation/IMPLEMENTATION_PLAN.md`
 
-**Priority additions:**
-1. Reduce query count to 20 (from 60)
-2. JSON schema validation for all LLM calls
-3. Credibility filter (block sponsored content)
-4. 6-month recency filter
-5. Quality audit agent
+---
 
-## Implementation Status Tracking
+## Quick Commands
 
-Check current progress:
 ```bash
+# Check implementation status
 cat IMPLEMENTATION_STATUS.json
-```
 
-Mark step complete:
-```bash
-./scripts/mark_step_complete.sh 1.1 "Reduced to 20 queries"
-```
-
-## Running the System
-
-**Full pipeline:**
-```bash
+# Run full pipeline
 python run_pipeline.py
-```
 
-**Individual phases:**
-```bash
+# Test specific phase
 python phases/phase1_crawl.py
 python phases/phase2_extract.py
-python phases/phase3_verify.py
-python phases/phase4_analyze.py
-python phases/phase5_brief.py
-python phases/keyword_evolution.py
-```
 
-**Testing:**
-```bash
+# Run tests
 pytest tests/ -v
+
+# Generate queries (test)
+python phases/query_builder.py
+
+# Review suggested keywords (after Phase 4)
+python scripts/review_keywords.py list
+
+# Mark step complete
+./scripts/mark_step_complete.sh 1.1 "Completed llm_utils"
 ```
 
-**Feedback:**
-```bash
-python feedback.py more 123 "Great signal, exactly this type"
-python feedback.py less 456 "Sales pitch, not a real problem"
-python feedback.py list
-python feedback.py stats
-```
+---
+
+## Current Issues (Known)
+
+1. **Sales pitches passing through**: Need Phase 2.5 credibility filter
+2. **Old content included**: Need recency filter in Phase 3
+3. **Auto-added keywords**: Need manual review system (Phase 4)
+4. **No quality feedback**: Need audit agent (Phase 6)
+
+---
+
+## Next Immediate Steps
+
+1. **Start with Phase 1.1**: Create `phases/llm_utils.py`
+2. **Test it**: `python phases/llm_utils.py`
+3. **Mark complete**: `./scripts/mark_step_complete.sh 1.1 "LLM utils working"`
+4. **Move to 1.2**: Set up test suite
+
+**Estimated time to Phase 2 complete**: ~2 hours  
+**Estimated time to production-ready**: ~5-6 hours total
+
+---
 
 ## File Structure
 
 ```
 swedish-ai/
+├── phases/                    # Pipeline phases
+│   ├── phase1_crawl.py       # ✓ Working
+│   ├── phase2_extract.py     # ✓ Working
+│   ├── phase2_5_credibility.py  # ⏳ Need to build
+│   ├── phase3_verify.py      # ✓ Working (needs enhancement)
+│   ├── phase4_analyze.py     # ✓ Working
+│   ├── phase5_brief.py       # ✓ Working
+│   ├── keyword_evolution.py  # ✓ Working (needs enhancement)
+│   └── llm_utils.py          # ⏳ Need to build
 ├── config/
-│   ├── keywords.json          # Search terms (66/34 split)
-│   ├── focus.txt              # Current business focus
-│   └── geography.json         # Nordic market config (new)
-├── phases/
-│   ├── database.py            # SQLite schema
-│   ├── phase1_crawl.py        # Scraping
-│   ├── phase2_extract.py      # LLM extraction
-│   ├── phase2_5_credibility.py # NEW: Sales pitch detection
-│   ├── phase3_verify.py       # Verification
-│   ├── phase4_5_analyze_brief.py
-│   ├── keyword_evolution.py
-│   ├── llm_utils.py          # NEW: JSON schema enforcement
-│   └── query_builder.py
+│   ├── keywords.json         # ✓ Updated to 20 queries
+│   └── geography.json        # ⏳ For Nordic expansion
 ├── docs/
-│   ├── QUICK_START.md         # This file
+│   ├── QUICK_START.md        # ← You are here
 │   ├── implementation/
 │   │   └── IMPLEMENTATION_PLAN.md
 │   ├── schemas/
 │   │   └── ALL_SCHEMAS.json
 │   └── prompts/
 │       └── ALL_PROMPTS.md
-├── tests/                     # Pytest test suite
-├── run_pipeline.py            # Main orchestrator
-├── feedback.py                # User feedback tool
-└── IMPLEMENTATION_STATUS.json # Progress tracking
+├── scripts/
+│   ├── mark_step_complete.sh
+│   └── review_keywords.py    # ⏳ Need to build
+├── tests/
+│   ├── conftest.py           # ⏳ Need to build
+│   ├── test_llm_utils.py     # ⏳ Need to build
+│   └── test_credibility.py   # ⏳ Need to build
+├── run_pipeline.py           # ✓ Main entry point
+├── IMPLEMENTATION_STATUS.json # Track progress
+└── PROJECT.md                # Full system spec
 ```
-
-## Configuration Files
-
-**keywords.json** - Search terms and rotation rules:
-- `core_keywords`: Known pain language (66%)
-- `discovery_keywords`: LLM-learned terms (34%)
-- `site_targets`: Where to search
-- `rotation`: Query count, cooldown, limits
-
-**focus.txt** - Current business priorities (plain text)
-
-## Database Tables
-
-- `raw_crawl` - Scraped pages
-- `extracted_signals` - LLM-extracted signals
-- `credibility_scores` - Sales pitch detection (NEW)
-- `verified_signals` - Verification results
-- `analysis_results` - Pattern analysis
-- `briefs` - Generated reports
-- `feedback` - User ratings
-- `keyword_history` - Performance tracking
-- `query_log` - What was searched
-- `discovery_queue` - Thread/comment leads (NEW)
-
-## Common Issues
-
-**"Module not found"**: Add to PYTHONPATH
-```bash
-export PYTHONPATH=/home/pi/swedish-ai:$PYTHONPATH
-```
-
-**"Database locked"**: SQLite timeout
-```bash
-# Check for running processes
-ps aux | grep python
-```
-
-**"Rate limited by Google"**: Too many queries
-```bash
-# Reduce query count in config/keywords.json
-# Or add random delays
-```
-
-**"Claude API quota exceeded"**: Daily limit hit
-```bash
-# Check usage: grep "claude" logs/*.log | grep -c "API call"
-# Reduce pages per query or skip days
-```
-
-## Next Steps
-
-1. **Pull latest changes**: `git pull`
-2. **Check implementation status**: `cat IMPLEMENTATION_STATUS.json`
-3. **Start with Step 1.1**: Reduce query count to 20
-4. **Follow atomic steps**: Each is independent and testable
-5. **Run tests after each change**: `pytest tests/ -v`
-6. **Commit frequently**: `git commit -m "Step X.Y: description"`
-
-## Getting Help
-
-- **System design**: See `docs/smb-intelligence-system-description.md`
-- **Implementation steps**: See `docs/implementation/IMPLEMENTATION_PLAN.md`
-- **Schema reference**: See `docs/schemas/ALL_SCHEMAS.json`
-- **Prompt templates**: See `docs/prompts/ALL_PROMPTS.md`
-
-## Critical Reminders
-
-⚠️ **Hallucination Prevention**: LLMs never touch the internet directly  
-⚠️ **Schema Validation**: All LLM outputs must be JSON  
-⚠️ **Citation Required**: Every claim must trace to a verified source  
-⚠️ **Test Everything**: Run tests before committing
 
 ---
 
-Last updated: 2025-02-18
+## Getting Help
+
+1. **Check implementation plan**: `docs/implementation/IMPLEMENTATION_PLAN.md`
+2. **Check current status**: `cat IMPLEMENTATION_STATUS.json`
+3. **Read full spec**: `PROJECT.md`
+4. **Open GitHub issue**: https://github.com/jl-grey-man/swedish-ai/issues
+
+---
+
+## Safety Notes
+
+- **Always backup database** before migrations: `cp smb.db smb.db.backup`
+- **Test each phase** before running full pipeline
+- **Monitor first 3 runs** after changes
+- **Start with 20 queries**, increase only if quality is good
+- **Review suggested keywords** before approving
+
+---
+
+**Last Updated**: 2025-02-18  
+**Status**: Ready for Phase 1 implementation
