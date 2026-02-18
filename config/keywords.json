@@ -55,7 +55,20 @@
   },
   "discovery_keywords": {
     "_description": "34% of searches use these. LLM-suggested from real signals. Starts sparse, grows over time.",
-    "from_signals": [],
+    "from_signals": [
+      "kall försäljning",
+      "miserabel aktivitet",
+      "misslyckades eländigt",
+      "magkänsla",
+      "betalningstider",
+      "kompetensförsörjning",
+      "felrekrytering",
+      "vakans",
+      "outsourca utvecklingen",
+      "yrkeserfarenhet",
+      "vågar inte anställa",
+      "tillväxthinder"
+    ],
     "adjacent_terms": [
       "drunknar i",
       "önskar att",

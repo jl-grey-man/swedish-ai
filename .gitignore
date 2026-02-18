@@ -36,3 +36,4 @@ data/*.db
 # System
 .DS_Store
 Thumbs.db
+api_keys.json

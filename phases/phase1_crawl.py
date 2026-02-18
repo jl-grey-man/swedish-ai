@@ -1,23 +1,21 @@
 """
-Phase 1: CRAWL — Google dorking engine.
-No LLM. Pure scraping. Deterministic.
+Phase 1: CRAWL — Tavily search engine.
+No LLM. Pure search + content retrieval. Deterministic.
 
-Searches Google with generated queries, fetches result pages,
+Searches via Tavily API, fetches result content,
 stores raw content in SQLite.
 """
 
 import json
-import random
 import re
 import time
-import hashlib
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse, quote_plus
+from urllib.parse import urlparse
 
-import requests
-from bs4 import BeautifulSoup
+from tavily import TavilyClient
 
 from database import get_db, init_db, store_crawl_result, log_query
 from query_builder import generate_run_queries
@@ -37,26 +35,24 @@ logging.basicConfig(
 )
 log = logging.getLogger("crawl")
 
-# Rate limiting
-MIN_DELAY = 2.0   # seconds between Google searches
-MAX_DELAY = 5.0   # randomized to avoid patterns
-PAGE_FETCH_DELAY = 1.0  # seconds between fetching result pages
+# Tavily config
+TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "").strip()
+if not TAVILY_API_KEY:
+    # Try loading from config file
+    config_file = Path(__file__).parent.parent / "config" / "api_keys.json"
+    if config_file.exists():
+        with open(config_file) as f:
+            TAVILY_API_KEY = json.load(f).get("tavily", "")
 
-# Request settings
-HEADERS_LIST = [
-    {
-        "User-Agent": "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 "
-                       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
-    {
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) "
-                       "Gecko/20100101 Firefox/121.0",
-        "Accept-Language": "sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
-]
+if not TAVILY_API_KEY:
+    raise RuntimeError(
+        "TAVILY_API_KEY not set. Set env var or add to config/api_keys.json"
+    )
+
+tavily = TavilyClient(api_key=TAVILY_API_KEY)
+
+# Rate limiting — Tavily is API-based so lighter limits
+QUERY_DELAY = 1.0  # seconds between Tavily calls (be polite)
 
 # Domains to skip (not useful content)
 SKIP_DOMAINS = {
@@ -65,130 +61,54 @@ SKIP_DOMAINS = {
     "pinterest.com", "wikipedia.org", "amazon.se", "amazon.com",
 }
 
-SESSION = requests.Session()
 
-
-def get_headers():
-    return random.choice(HEADERS_LIST)
-
-
-def search_google(query: str, num_results: int = 10) -> list[dict]:
+def search_tavily(query: str, include_domains: list[str] = None,
+                  max_results: int = 5) -> list[dict]:
     """
-    Search Google and return list of result URLs with snippets.
-    Uses google.se for Swedish results.
-    """
-    encoded = quote_plus(query)
-    url = f"https://www.google.se/search?q={encoded}&num={num_results}&hl=sv"
-    
-    try:
-        resp = SESSION.get(url, headers=get_headers(), timeout=15)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        log.warning(f"Google search failed for '{query}': {e}")
-        return []
-    
-    soup = BeautifulSoup(resp.text, "html.parser")
-    results = []
-    
-    for g in soup.select("div.g"):
-        link_el = g.select_one("a[href]")
-        snippet_el = g.select_one("div.VwiC3b") or g.select_one("span.st")
-        
-        if not link_el:
-            continue
-            
-        href = link_el.get("href", "")
-        if not href.startswith("http"):
-            continue
-            
-        domain = urlparse(href).netloc.replace("www.", "")
-        if domain in SKIP_DOMAINS:
-            continue
-        
-        title = link_el.get_text(strip=True)
-        snippet = snippet_el.get_text(strip=True) if snippet_el else ""
-        
-        results.append({
-            "url": href,
-            "domain": domain,
-            "title": title,
-            "snippet": snippet,
-        })
-    
-    # Fallback: try extracting from different Google result format
-    if not results:
-        for a_tag in soup.find_all("a"):
-            href = a_tag.get("href", "")
-            if href.startswith("/url?q="):
-                clean_url = href.split("/url?q=")[1].split("&")[0]
-                domain = urlparse(clean_url).netloc.replace("www.", "")
-                if domain not in SKIP_DOMAINS and clean_url.startswith("http"):
-                    results.append({
-                        "url": clean_url,
-                        "domain": domain,
-                        "title": a_tag.get_text(strip=True),
-                        "snippet": "",
-                    })
-    
-    log.info(f"Query '{query[:60]}...' returned {len(results)} results")
-    return results
-
-
-def fetch_page(url: str) -> dict:
-    """
-    Fetch a page and extract clean text content.
-    Returns dict with raw_text, raw_html, title, status.
+    Search via Tavily API. Returns list of results with content.
+    Tavily returns extracted text directly — no need to fetch pages.
     """
     try:
-        resp = SESSION.get(url, headers=get_headers(), timeout=15, 
-                          allow_redirects=True)
-        status = resp.status_code
-        
-        if status != 200:
-            return {"raw_text": "", "raw_html": "", "title": "", 
-                    "status": status, "error": f"HTTP {status}"}
-        
-        # Check content type
-        ctype = resp.headers.get("content-type", "")
-        if "text/html" not in ctype and "text/plain" not in ctype:
-            return {"raw_text": "", "raw_html": "", "title": "",
-                    "status": status, "error": f"Not HTML: {ctype}"}
-        
-        html = resp.text
-        soup = BeautifulSoup(html, "html.parser")
-        
-        # Remove script, style, nav, footer
-        for tag in soup(["script", "style", "nav", "footer", "header", 
-                         "aside", "noscript"]):
-            tag.decompose()
-        
-        title = soup.title.get_text(strip=True) if soup.title else ""
-        
-        # Get main content — try article first, then body
-        main = soup.find("article") or soup.find("main") or soup.find("body")
-        raw_text = main.get_text(separator="\n", strip=True) if main else ""
-        
-        # Truncate extremely long pages
-        if len(raw_text) > 50000:
-            raw_text = raw_text[:50000] + "\n[TRUNCATED]"
-        
-        return {
-            "raw_text": raw_text,
-            "raw_html": html[:100000],  # Keep HTML but cap size
-            "title": title,
-            "status": status,
-            "error": None,
+        kwargs = {
+            "query": query,
+            "max_results": max_results,
+            "search_depth": "advanced",
+            "include_answer": False,
         }
-        
-    except requests.RequestException as e:
-        log.warning(f"Failed to fetch {url}: {e}")
-        return {"raw_text": "", "raw_html": "", "title": "",
-                "status": 0, "error": str(e)}
+        if include_domains:
+            kwargs["include_domains"] = include_domains
+
+        response = tavily.search(**kwargs)
+        results = []
+
+        for r in response.get("results", []):
+            url = r.get("url", "")
+            domain = urlparse(url).netloc.replace("www.", "")
+
+            if domain in SKIP_DOMAINS:
+                continue
+
+            content = r.get("content", "")
+            raw_content = r.get("raw_content", "")
+
+            results.append({
+                "url": url,
+                "domain": domain,
+                "title": r.get("title", ""),
+                "snippet": content,
+                "raw_text": raw_content if raw_content else content,
+            })
+
+        log.info(f"Query '{query[:60]}' returned {len(results)} results")
+        return results
+
+    except Exception as e:
+        log.warning(f"Tavily search failed for '{query}': {e}")
+        return []
 
 
 def extract_date_from_text(text: str) -> str:
     """Try to find a date in the page content."""
-    # Common Swedish date patterns
     patterns = [
         r'(\d{4}-\d{2}-\d{2})',  # 2024-12-15
         r'(\d{1,2}\s+(?:jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)\w*\s+\d{4})',
@@ -202,45 +122,49 @@ def extract_date_from_text(text: str) -> str:
 
 def run_crawl():
     """
-    Main crawl execution. Generates queries, searches Google,
-    fetches pages, stores everything.
+    Main crawl execution. Generates queries, searches via Tavily,
+    stores everything.
     """
     init_db()
     conn = get_db()
-    
+
     queries = generate_run_queries(conn)
-    
+
     stats = {
         "queries_run": 0,
         "results_found": 0,
-        "pages_fetched": 0,
         "pages_stored": 0,
         "duplicates": 0,
         "errors": 0,
     }
-    
-    log.info(f"Starting crawl with {len(queries)} queries")
-    
+
+    log.info(f"Starting Tavily crawl with {len(queries)} queries")
+
     for i, q in enumerate(queries):
         query_text = q["query"]
         keyword_type = q["type"]
         site = q["site"]
-        
+        include_domains = q.get("include_domains")
+
         log.info(f"[{i+1}/{len(queries)}] [{keyword_type}] {query_text[:70]}")
-        
-        # Search Google
-        results = search_google(query_text)
+
+        # Search via Tavily
+        results = search_tavily(
+            query_text,
+            include_domains=include_domains,
+            max_results=5
+        )
         stats["queries_run"] += 1
         stats["results_found"] += len(results)
-        
+
         # Log the query
         log_query(conn, query_text, keyword_type, site, len(results))
-        
-        # Fetch each result page
-        for result in results[:5]:  # Max 5 pages per query
+
+        # Store each result (Tavily already provides content)
+        for result in results:
             url = result["url"]
             domain = result["domain"]
-            
+
             # Check if already crawled
             existing = conn.execute(
                 "SELECT 1 FROM raw_crawl WHERE source_url = ?", (url,)
@@ -248,52 +172,40 @@ def run_crawl():
             if existing:
                 stats["duplicates"] += 1
                 continue
-            
-            time.sleep(PAGE_FETCH_DELAY)
-            page = fetch_page(url)
-            
-            if page["error"] or len(page["raw_text"]) < 100:
-                stats["errors"] += 1 if page["error"] else 0
+
+            raw_text = result["raw_text"]
+            if len(raw_text) < 50:
                 continue
-            
-            stats["pages_fetched"] += 1
-            
-            # Store in database
-            content_date = extract_date_from_text(page["raw_text"])
+
+            content_date = extract_date_from_text(raw_text)
             source_hash = store_crawl_result(
                 conn=conn,
                 url=url,
                 domain=domain,
-                title=page["title"] or result["title"],
-                raw_text=page["raw_text"],
-                raw_html=page["raw_html"],
+                title=result["title"],
+                raw_text=raw_text,
+                raw_html="",  # Tavily doesn't return HTML
                 query=query_text,
                 keyword_type=keyword_type,
-                http_status=page["status"],
+                http_status=200,
                 content_date=content_date,
             )
-            
+
             if source_hash:
                 stats["pages_stored"] += 1
                 log.info(f"  Stored: {url[:80]} [{source_hash}]")
             else:
                 stats["duplicates"] += 1
-        
-        # Delay between Google searches
-        delay = random.uniform(MIN_DELAY, MAX_DELAY)
-        time.sleep(delay)
-        
-        # Check for Google blocking (CAPTCHA detection)
-        if stats["queries_run"] % 20 == 0 and stats["results_found"] == 0:
-            log.warning("No results in last batch — possible rate limit. "
-                       "Pausing 60 seconds.")
-            time.sleep(60)
-    
+
+        # Small delay between Tavily calls
+        if i < len(queries) - 1:
+            time.sleep(QUERY_DELAY)
+
     # Save run stats
     stats_file = DATA_DIR / "logs" / f"crawl_stats_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
     with open(stats_file, "w") as f:
         json.dump(stats, f, indent=2)
-    
+
     log.info(f"Crawl complete: {json.dumps(stats, indent=2)}")
     conn.close()
     return stats

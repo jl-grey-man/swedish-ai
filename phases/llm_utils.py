@@ -115,14 +115,13 @@ def validate_schema(data: Dict[str, Any], schema: Dict[str, Any]):
                 "object": "dict"
             }
             
-            expected = type_map.get(expected_type, expected_type)
-            
             # Handle nullable types
-            if isinstance(expected_type, list) and "null" in expected_type:
-                if value is None:
+            if isinstance(expected_type, list):
+                if "null" in expected_type and value is None:
                     continue
                 expected_type = [t for t in expected_type if t != "null"][0]
-                expected = type_map.get(expected_type, expected_type)
+
+            expected = type_map.get(expected_type, expected_type)
             
             if isinstance(expected, list):
                 if actual_type not in expected:

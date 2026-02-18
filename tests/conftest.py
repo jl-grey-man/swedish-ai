@@ -2,8 +2,8 @@
 import sys
 from pathlib import Path
 
-# Add phases to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "phases"))
+# Add project root to path so 'phases' package is importable
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
