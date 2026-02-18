@@ -70,6 +70,22 @@ def init_db():
         FOREIGN KEY (source_hash) REFERENCES raw_crawl(source_hash)
     );
 
+    -- Credibility check results (Phase 2.5)
+    CREATE TABLE IF NOT EXISTS credibility_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        signal_id INTEGER NOT NULL,
+        sales_intent_score INTEGER CHECK(sales_intent_score BETWEEN 1 AND 10),
+        objectivity_score INTEGER CHECK(objectivity_score BETWEEN 1 AND 10),
+        sponsored_content BOOLEAN DEFAULT 0,
+        detected_patterns TEXT,  -- JSON array
+        reasoning TEXT,
+        language TEXT,
+        verdict TEXT CHECK(verdict IN ('accept', 'review', 'reject')),
+        checked_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (signal_id) REFERENCES extracted_signals(id),
+        UNIQUE(signal_id)
+    );
+
     -- Verification results
     CREATE TABLE IF NOT EXISTS verified_signals (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,6 +166,18 @@ def init_db():
         retired_date TEXT
     );
 
+    -- Discovery query suggestions (from quality audit and other sources)
+    CREATE TABLE IF NOT EXISTS discovery_suggestions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,  -- 'quality_audit', 'keyword_evolution', 'manual'
+        query_text TEXT NOT NULL,
+        reason TEXT,
+        priority REAL DEFAULT 0.5,
+        created_at TEXT DEFAULT (datetime('now')),
+        used_at TEXT,
+        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'used', 'retired'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_crawl_hash ON raw_crawl(source_hash);
     CREATE INDEX IF NOT EXISTS idx_crawl_domain ON raw_crawl(source_domain);
     CREATE INDEX IF NOT EXISTS idx_crawl_date ON raw_crawl(crawl_timestamp);
@@ -157,6 +185,10 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_signals_source ON extracted_signals(source_hash);
     CREATE INDEX IF NOT EXISTS idx_verified_status ON verified_signals(final_status);
     CREATE INDEX IF NOT EXISTS idx_query_date ON query_log(run_date);
+    CREATE INDEX IF NOT EXISTS idx_credibility_verdict ON credibility_scores(verdict);
+    CREATE INDEX IF NOT EXISTS idx_credibility_sponsored ON credibility_scores(sponsored_content);
+    CREATE INDEX IF NOT EXISTS idx_discovery_status ON discovery_suggestions(status);
+    CREATE INDEX IF NOT EXISTS idx_discovery_priority ON discovery_suggestions(priority);
 
     """)
     conn.commit()

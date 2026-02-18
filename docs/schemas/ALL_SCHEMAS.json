@@ -1,0 +1,175 @@
+{
+  "extraction_schema": {
+    "type": "object",
+    "required": ["signals"],
+    "properties": {
+      "signals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["signal_type", "person", "company", "content"],
+          "properties": {
+            "signal_type": {
+              "type": "string",
+              "enum": ["job_posting", "social_post", "news_mention", "forum_post", "company_data"]
+            },
+            "person": {
+              "type": "object",
+              "properties": {
+                "name": {"type": ["string", "null"]},
+                "title": {"type": ["string", "null"]},
+                "company": {"type": ["string", "null"]}
+              }
+            },
+            "company": {
+              "type": "object",
+              "properties": {
+                "name": {"type": ["string", "null"]},
+                "industry": {"type": ["string", "null"]},
+                "employee_count": {"type": ["string", "null"]}
+              }
+            },
+            "content": {
+              "type": "object",
+              "required": ["original_quote", "topic_tags"],
+              "properties": {
+                "original_quote": {"type": "string", "maxLength": 500},
+                "topic_tags": {"type": "array", "items": {"type": "string"}},
+                "expressed_problem": {"type": ["string", "null"]},
+                "expressed_need": {"type": ["string", "null"]},
+                "ai_awareness": {
+                  "type": ["string", "null"],
+                  "enum": ["using_ai", "exploring_ai", "skeptical", "unaware", null]
+                }
+              }
+            }
+          }
+        }
+      },
+      "reason": {"type": ["string", "null"]}
+    }
+  },
+
+  "credibility_schema": {
+    "type": "object",
+    "required": ["sales_intent_score", "objectivity_score", "sponsored_content",
+                "detected_patterns", "reasoning", "language", "verdict"],
+    "properties": {
+      "sales_intent_score": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10,
+        "description": "1=help request, 10=sales pitch"
+      },
+      "objectivity_score": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10,
+        "description": "1=personal post, 10=press release"
+      },
+      "sponsored_content": {"type": "boolean"},
+      "detected_patterns": {
+        "type": "array",
+        "items": {"type": "string"}
+      },
+      "reasoning": {"type": "string", "maxLength": 500},
+      "language": {
+        "type": "string",
+        "enum": ["sv", "da", "no", "fi", "is", "en", "other"]
+      },
+      "verdict": {
+        "type": "string",
+        "enum": ["accept", "review", "reject"]
+      }
+    }
+  },
+
+  "quality_audit_schema": {
+    "type": "object",
+    "required": ["overall_quality_score", "signal_quality", "critical_issues",
+                "improvement_suggestions", "new_feature_proposals"],
+    "properties": {
+      "overall_quality_score": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10
+      },
+      "signal_quality": {
+        "type": "object",
+        "required": ["total_signals", "high_quality", "medium_quality", 
+                    "low_quality", "sales_pitches_found"],
+        "properties": {
+          "total_signals": {"type": "integer"},
+          "high_quality": {"type": "integer"},
+          "medium_quality": {"type": "integer"},
+          "low_quality": {"type": "integer"},
+          "sales_pitches_found": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["signal_id", "reason"],
+              "properties": {
+                "signal_id": {"type": "integer"},
+                "reason": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "critical_issues": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["severity", "issue", "affected_signals", "recommendation"],
+          "properties": {
+            "severity": {"type": "string", "enum": ["critical", "major", "minor"]},
+            "issue": {"type": "string"},
+            "affected_signals": {"type": "array", "items": {"type": "integer"}},
+            "recommendation": {"type": "string"}
+          }
+        }
+      },
+      "improvement_suggestions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["category", "suggestion", "expected_impact", "implementation_priority"],
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": ["keyword_tuning", "source_selection", "credibility_filtering",
+                      "clustering_logic", "extraction_prompts", "verification_rules"]
+            },
+            "suggestion": {"type": "string"},
+            "expected_impact": {"type": "string", "enum": ["high", "medium", "low"]},
+            "implementation_priority": {
+              "type": "string",
+              "enum": ["immediate", "next_sprint", "backlog"]
+            }
+          }
+        }
+      },
+      "new_feature_proposals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["feature_name", "problem_it_solves", "description",
+                      "implementation_complexity", "expected_value", "priority"],
+          "properties": {
+            "feature_name": {"type": "string"},
+            "problem_it_solves": {"type": "string"},
+            "description": {"type": "string"},
+            "implementation_complexity": {
+              "type": "string",
+              "enum": ["trivial", "simple", "moderate", "complex", "major"]
+            },
+            "expected_value": {"type": "string", "enum": ["critical", "high", "medium", "low"]},
+            "priority": {"type": "string", "enum": ["must_have", "should_have", "nice_to_have"]},
+            "implementation_sketch": {"type": "string"},
+            "example_use_case": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}
